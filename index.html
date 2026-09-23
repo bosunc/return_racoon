@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="HTML5 Canvas로 만든 고전 픽셀 플랫폼 액션 게임" />
+    <title>RETURN RACCOON — Stage 1</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="arcade-shell">
+      <header class="brand-bar">
+        <div>
+          <p class="eyebrow">MOONBYTE SYSTEMS · 1994</p>
+          <h1>RETURN <span>RACCOON</span></h1>
+        </div>
+        <div class="stage-chip">STAGE 01</div>
+      </header>
+
+      <section class="screen-bezel" aria-label="게임 화면">
+        <canvas id="game" width="960" height="540" tabindex="0">
+          브라우저가 HTML5 Canvas를 지원하지 않습니다.
+        </canvas>
+        <div class="scanlines" aria-hidden="true"></div>
+      </section>
+
+      <footer class="control-panel">
+        <div class="key-group">
+          <span class="key">←</span><span class="key">→</span>
+          <span class="label">MOVE</span>
+        </div>
+        <div class="key-group">
+          <span class="key space">SPACE</span>
+          <span class="label">JUMP</span>
+        </div>
+        <p>달빛 골목을 지나 마지막 출구를 찾아라!</p>
+      </footer>
+    </main>
+    <script type="module" src="src/game.js"></script>
+  </body>
+</html>
