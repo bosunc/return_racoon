@@ -2,22 +2,52 @@ import { STAGES } from "./stages.js";
 
 const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
+const restartButton = document.querySelector("#restart-button");
 ctx.imageSmoothingEnabled = false;
 
 const stage = STAGES[0];
 const keys = new Set();
 const player = { x: 0, y: 0, width: 38, height: 54, vx: 0, vy: 0, grounded: false, facing: 1 };
 let cameraX = 0;
-let cleared = false;
+let gameState = "playing";
+let lives = 3;
+let score = 0;
+let enemies = [];
+let collectibles = [];
 let lastTime = performance.now();
 
 const GRAVITY = 1900;
 const SPEED = 330;
 const JUMP = 720;
 
-function reset() {
+function resetPlayer() {
   Object.assign(player, { ...stage.spawn, vx: 0, vy: 0, grounded: false });
   cameraX = Math.max(0, player.x - 180);
+  keys.clear();
+}
+
+function startGame() {
+  lives = 3;
+  score = 0;
+  gameState = "playing";
+  enemies = stage.enemies.map((enemy) => ({ ...enemy, direction: 1 }));
+  collectibles = stage.collectibles.map((item, index) => ({ ...item, id: index, collected: false }));
+  restartButton.hidden = true;
+  resetPlayer();
+  canvas.focus();
+}
+
+function loseLife() {
+  if (gameState !== "playing") return;
+  lives -= 1;
+  if (lives === 0) {
+    gameState = "gameover";
+    player.vx = 0;
+    player.vy = 0;
+    restartButton.hidden = false;
+  } else {
+    resetPlayer();
+  }
 }
 
 function overlaps(a, b) {
@@ -25,7 +55,15 @@ function overlaps(a, b) {
 }
 
 function update(dt) {
-  if (cleared) return;
+  if (gameState !== "playing") return;
+  for (const enemy of enemies) {
+    enemy.x += enemy.speed * enemy.direction * dt;
+    if (enemy.x <= enemy.minX || enemy.x + enemy.width >= enemy.maxX) {
+      enemy.x = Math.max(enemy.minX, Math.min(enemy.maxX - enemy.width, enemy.x));
+      enemy.direction *= -1;
+    }
+  }
+
   const direction = (keys.has("ArrowRight") ? 1 : 0) - (keys.has("ArrowLeft") ? 1 : 0);
   player.vx = direction * SPEED;
   if (direction) player.facing = direction;
@@ -44,8 +82,25 @@ function update(dt) {
       player.grounded = true;
     }
   }
-  if (player.y > canvas.height + 180) reset();
-  if (overlaps(player, stage.exit)) cleared = true;
+  if (player.y > canvas.height + 180) {
+    loseLife();
+    return;
+  }
+  if (enemies.some((enemy) => overlaps(player, enemy))) {
+    loseLife();
+    return;
+  }
+  for (const item of collectibles) {
+    if (!item.collected && overlaps(player, item)) {
+      item.collected = true;
+      score += item.points;
+    }
+  }
+  if (overlaps(player, stage.exit)) {
+    score += stage.clearBonus;
+    gameState = "cleared";
+    player.vx = 0;
+  }
 
   const target = player.x - canvas.width * 0.38;
   cameraX += (Math.max(0, Math.min(stage.width - canvas.width, target)) - cameraX) * Math.min(1, dt * 6);
@@ -86,6 +141,23 @@ function drawExit() {
   ctx.fillStyle = "#ff598b"; ctx.font = "bold 12px monospace"; ctx.fillText("EXIT", x + 8, y - 58);
 }
 
+function drawCollectible(item) {
+  if (item.collected) return;
+  const x = item.x - cameraX, y = item.y;
+  rect(x + 8, y, 8, 4, "#fff4b0"); rect(x + 4, y + 4, 16, 4, "#ffcf65");
+  rect(x, y + 8, 24, 8, "#ff9c55"); rect(x + 4, y + 16, 16, 4, "#e9507f");
+  rect(x + 8, y + 20, 8, 4, "#8b3d76"); rect(x + 8, y + 8, 8, 8, "#fff1a0");
+}
+
+function drawEnemy(enemy) {
+  const x = enemy.x - cameraX, y = enemy.y;
+  rect(x + 5, y + 7, 32, 27, "#744481"); rect(x + 1, y + 14, 40, 14, "#50315f");
+  rect(x + 7, y + 2, 9, 10, "#a85d86"); rect(x + 27, y + 2, 9, 10, "#a85d86");
+  rect(x + (enemy.direction > 0 ? 25 : 9), y + 15, 7, 6, "#f7e9b5");
+  rect(x + (enemy.direction > 0 ? 29 : 9), y + 16, 3, 3, "#17142d");
+  rect(x + 5, y + 34, 12, 10, "#51d1c4"); rect(x + 26, y + 34, 12, 10, "#51d1c4");
+}
+
 function drawPlayer() {
   const x = player.x - cameraX, y = player.y, flip = player.facing;
   rect(x + 5, y + 5, 28, 35, "#8d6b72"); rect(x + 1, y + 11, 36, 18, "#6a4c61");
@@ -96,9 +168,10 @@ function drawPlayer() {
 }
 
 function drawHUD() {
-  ctx.fillStyle = "#111127cc"; ctx.fillRect(20, 18, 330, 50); ctx.strokeStyle = "#584b73"; ctx.strokeRect(20.5, 18.5, 330, 50);
+  ctx.fillStyle = "#111127dd"; ctx.fillRect(20, 18, 500, 50); ctx.strokeStyle = "#584b73"; ctx.strokeRect(20.5, 18.5, 500, 50);
   ctx.fillStyle = "#ff5a8c"; ctx.font = "bold 16px monospace"; ctx.fillText("STAGE 1", 37, 49);
-  ctx.fillStyle = "#f9e8ba"; ctx.font = "bold 14px monospace"; ctx.fillText(stage.name, 168, 48);
+  ctx.fillStyle = "#f9e8ba"; ctx.font = "bold 14px monospace"; ctx.fillText(`LIFE ${lives}`, 168, 48);
+  ctx.fillStyle = "#53d8ca"; ctx.fillText(`SCORE ${String(score).padStart(5, "0")}`, 285, 48);
   const progress = Math.min(1, player.x / stage.exit.x);
   rect(700, 37, 220, 8, "#292542"); rect(700, 37, 220 * progress, 8, "#4dd7c9"); rect(696 + 220 * progress, 31, 8, 20, "#fff0bd");
 }
@@ -107,11 +180,29 @@ function drawClear() {
   ctx.fillStyle = "#0a0920cc"; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.textAlign = "center"; ctx.fillStyle = "#ff578c"; ctx.font = "bold 58px monospace"; ctx.fillText("STAGE CLEAR", canvas.width / 2 + 4, 238 + 5);
   ctx.fillStyle = "#fff0bd"; ctx.fillText("STAGE CLEAR", canvas.width / 2, 238);
-  ctx.fillStyle = "#53d8ca"; ctx.font = "bold 18px monospace"; ctx.fillText("달빛 골목 탈출 성공!", canvas.width / 2, 293);
-  ctx.fillStyle = "#aaa0bf"; ctx.font = "bold 14px monospace"; ctx.fillText("ENTER — 다시 시작", canvas.width / 2, 350); ctx.textAlign = "start";
+  ctx.fillStyle = "#53d8ca"; ctx.font = "bold 18px monospace"; ctx.fillText(`SCORE ${score}   LIFE ${lives}`, canvas.width / 2, 293);
+  ctx.fillStyle = "#aaa0bf"; ctx.font = "bold 14px monospace"; ctx.fillText(`EXIT BONUS +${stage.clearBonus}`, canvas.width / 2, 333); ctx.fillText("ENTER — 다시 시작", canvas.width / 2, 370); ctx.textAlign = "start";
 }
 
-function render() { drawBackground(); stage.platforms.forEach(drawPlatform); drawExit(); drawPlayer(); drawHUD(); if (cleared) drawClear(); }
+function drawGameOver() {
+  ctx.fillStyle = "#0a0920df"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.textAlign = "center"; ctx.fillStyle = "#551d58"; ctx.font = "bold 64px monospace"; ctx.fillText("GAME OVER", canvas.width / 2 + 5, 237);
+  ctx.fillStyle = "#ff578c"; ctx.fillText("GAME OVER", canvas.width / 2, 232);
+  ctx.fillStyle = "#fff0bd"; ctx.font = "bold 20px monospace"; ctx.fillText(`FINAL SCORE ${score}`, canvas.width / 2, 292);
+  ctx.fillStyle = "#aaa0bf"; ctx.font = "bold 14px monospace"; ctx.fillText("ENTER 또는 아래 버튼으로 다시 시작", canvas.width / 2, 337); ctx.textAlign = "start";
+}
+
+function render() {
+  drawBackground();
+  stage.platforms.forEach(drawPlatform);
+  drawExit();
+  collectibles.forEach(drawCollectible);
+  enemies.forEach(drawEnemy);
+  drawPlayer();
+  drawHUD();
+  if (gameState === "cleared") drawClear();
+  if (gameState === "gameover") drawGameOver();
+}
 
 function loop(now) {
   const dt = Math.min((now - lastTime) / 1000, 1 / 30); lastTime = now;
@@ -121,9 +212,10 @@ function loop(now) {
 addEventListener("keydown", (event) => {
   if (["ArrowLeft", "ArrowRight", "Space"].includes(event.code)) event.preventDefault();
   keys.add(event.code);
-  if (event.code === "Space" && player.grounded && !cleared) { player.vy = -JUMP; player.grounded = false; }
-  if (event.code === "Enter" && cleared) { cleared = false; reset(); }
+  if (event.code === "Space" && player.grounded && gameState === "playing") { player.vy = -JUMP; player.grounded = false; }
+  if (event.code === "Enter" && gameState !== "playing") startGame();
 });
 addEventListener("keyup", (event) => keys.delete(event.code));
 canvas.addEventListener("pointerdown", () => canvas.focus());
-reset(); requestAnimationFrame(loop);
+restartButton.addEventListener("click", startGame);
+startGame(); requestAnimationFrame(loop);
