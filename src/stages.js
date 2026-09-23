@@ -6,6 +6,21 @@ export const STAGES = [
     width: 3600,
     spawn: { x: 110, y: 390 },
     exit: { x: 3440, y: 326, width: 70, height: 114 },
+    clearBonus: 1000,
+    enemies: [
+      { x: 2050, y: 376, width: 42, height: 44, minX: 1970, maxX: 2290, speed: 90 },
+    ],
+    collectibles: [
+      { x: 390, y: 420, width: 24, height: 24, points: 100 },
+      { x: 805, y: 380, width: 24, height: 24, points: 100 },
+      { x: 1115, y: 315, width: 24, height: 24, points: 150 },
+      { x: 1450, y: 375, width: 24, height: 24, points: 100 },
+      { x: 1760, y: 285, width: 24, height: 24, points: 200 },
+      { x: 2200, y: 370, width: 24, height: 24, points: 150 },
+      { x: 2490, y: 310, width: 24, height: 24, points: 200 },
+      { x: 2748, y: 245, width: 24, height: 24, points: 250 },
+      { x: 3160, y: 345, width: 24, height: 24, points: 150 },
+    ],
     platforms: [
       { x: 0, y: 470, width: 620, height: 90 },
       { x: 700, y: 430, width: 260, height: 110 },
